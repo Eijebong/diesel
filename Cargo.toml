@@ -4,7 +4,7 @@ members = [
     "diesel_cli",
     "diesel_codegen",
     # FIXME: getting "multiple matching crates for `diesel`" because of the shared build directory
-    # "diesel_compile_tests",
+    "diesel_compile_tests",
     "diesel_tests",
     "diesel_infer_schema",
     "examples/mysql/getting_started_step_1",

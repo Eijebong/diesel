@@ -3,12 +3,10 @@ name = "diesel_compile_tests"
 version = "0.1.0"
 authors = ["Sean Griffin <sean@seantheprogrammer.com>"]
 
-[workspace]
-
 [dependencies]
 diesel = { version = "0.13.0", features = ["extras", "sqlite", "postgres", "mysql"] }
 diesel_codegen = { version = "0.13.0" }
-compiletest_rs = "=0.2.5"
+compiletest_rs = "=0.2.6"
 
 [replace]
 "diesel:0.13.0" = { path = "../diesel" }
