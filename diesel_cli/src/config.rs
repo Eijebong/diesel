@@ -443,6 +443,13 @@ pub struct PrintSchema {
     pub custom_type_derives: Option<Vec<String>>,
     #[serde(default)]
     pub sqlite_integer_primary_key_is_bigint: Option<bool>,
+    #[serde(default)]
+    pub patches: BTreeMap<String, BTreeMap<String, FieldPatch>>,
+}
+
+#[derive(Default, Deserialize, Clone, Debug)]
+pub struct FieldPatch {
+    pub r#type: String,
 }
 
 impl PrintSchema {

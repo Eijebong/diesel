@@ -12,7 +12,7 @@ pub struct ColumnInformation {
     pub comment: Option<String>,
 }
 
-#[derive(Debug, PartialEq, Clone, Eq)]
+#[derive(Default, Debug, PartialEq, Clone, Eq)]
 pub struct ColumnType {
     pub schema: Option<String>,
     pub rust_name: String,

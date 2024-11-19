@@ -1,9 +1,9 @@
-use crate::config;
+use crate::config::{self, FieldPatch};
 use crate::database::{Backend, InferConnection};
 use crate::infer_schema_internals::*;
 
 use serde::{Deserialize, Serialize};
-use std::collections::HashSet;
+use std::collections::{BTreeMap, HashSet};
 use std::fmt::{self, Display, Formatter, Write};
 use std::io::Write as IoWrite;
 
@@ -249,6 +249,7 @@ pub fn output_schema(
             }
         }),
         import_types: config.import_types(),
+        table_patches: &config.patches,
     };
 
     if let Some(schema_name) = config.schema_name() {
@@ -492,6 +493,7 @@ struct TableDefinitions<'a> {
     with_docs: DocConfig,
     import_types: Option<&'a [String]>,
     custom_types_for_tables: Option<CustomTypesForTables>,
+    table_patches: &'a BTreeMap<String, BTreeMap<String, FieldPatch>>,
 }
 
 impl<'a> Display for TableDefinitions<'a> {
@@ -503,6 +505,9 @@ impl<'a> Display for TableDefinitions<'a> {
             } else {
                 writeln!(f)?;
             }
+
+            let field_patches = self.table_patches.get(&table.name.sql_name);
+
             writeln!(
                 f,
                 "{}",
@@ -513,7 +518,8 @@ impl<'a> Display for TableDefinitions<'a> {
                     custom_type_overrides: self
                         .custom_types_for_tables
                         .as_ref()
-                        .map(|cts| cts.types_overrides_sorted[table_idx].as_slice())
+                        .map(|cts| cts.types_overrides_sorted[table_idx].as_slice()),
+                    field_patches,
                 }
             )?;
         }
@@ -551,6 +557,7 @@ struct TableDefinition<'a> {
     with_docs: DocConfig,
     import_types: Option<&'a [String]>,
     custom_type_overrides: Option<&'a [Option<ColumnType>]>,
+    field_patches: Option<&'a BTreeMap<String, FieldPatch>>,
 }
 
 fn write_doc_comments(out: &mut impl fmt::Write, doc: &str) -> fmt::Result {
@@ -648,7 +655,8 @@ impl<'a> Display for TableDefinition<'a> {
                     columns: &self.table.column_data,
                     with_docs: self.with_docs,
                     table_full_sql_name: &full_sql_name,
-                    custom_type_overrides: self.custom_type_overrides
+                    custom_type_overrides: self.custom_type_overrides,
+                    field_patches: self.field_patches,
                 }
             )?;
         }
@@ -662,6 +670,7 @@ struct ColumnDefinitions<'a> {
     with_docs: DocConfig,
     table_full_sql_name: &'a str,
     custom_type_overrides: Option<&'a [Option<ColumnType>]>,
+    field_patches: Option<&'a BTreeMap<String, FieldPatch>>,
 }
 
 impl<'a> Display for ColumnDefinitions<'a> {
@@ -670,10 +679,20 @@ impl<'a> Display for ColumnDefinitions<'a> {
             let mut out = PadAdapter::new(f);
             writeln!(out, "{{")?;
             for (column_idx, column) in self.columns.iter().enumerate() {
-                let column_type = self
-                    .custom_type_overrides
-                    .and_then(|ct| ct[column_idx].as_ref())
-                    .unwrap_or(&column.ty);
+                let column_type = if let Some(field_patch) = self
+                    .field_patches
+                    .map(|field_patches| field_patches.get(&column.sql_name))
+                    .flatten()
+                {
+                    &ColumnType {
+                        rust_name: field_patch.r#type.clone(),
+                        ..Default::default()
+                    }
+                } else {
+                    self.custom_type_overrides
+                        .and_then(|ct| ct[column_idx].as_ref())
+                        .unwrap_or(&column.ty)
+                };
 
                 match self.with_docs {
                     DocConfig::NoDocComments => {}
